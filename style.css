@@ -1,0 +1,25 @@
+:root{
+  --bg:#EEF1F5; --ink:#1E2430; --soft:#5C6577; --line:#CDD4DF;
+  --world:#8A93A6; --ghost:#DCE1E9;
+  --red:#F2464F; --blue:#1FB6E0; --gold:#F5B700;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#171A21; --ink:#EEF1F6; --soft:#A3ACBD; --line:#353C49;
+    --world:#6F7889; --ghost:#262B35;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#171A21; --ink:#EEF1F6; --soft:#A3ACBD; --line:#353C49;
+  --world:#6F7889; --ghost:#262B35;
+  color-scheme:dark;
+}
+html,body{height:100%; margin:0}
+body{background:var(--bg); overflow:hidden; font-family:"Fredoka","Nunito","Trebuchet MS",system-ui,sans-serif}
+#app{height:100%}
+canvas{display:block}
