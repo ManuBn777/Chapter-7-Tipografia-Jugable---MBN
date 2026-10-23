@@ -4,7 +4,7 @@
 // =====================================================
 
 // ---------- Ajustes fáciles de cambiar ----------
-const NUM_FLOORS = 6;     // cantidad de pisos (usa un número par: 4, 6, 8...)
+const NUM_FLOORS = 8;     // cantidad de pisos (usa un número par: 4, 6, 8...)
 const GRAVITY = 1.2;      // qué tan fuerte jala hacia abajo
 const SPEED = 3.6;        // velocidad al caminar
 const JUMP = 7.2;         // fuerza del salto
@@ -12,7 +12,7 @@ const CLIMB = 2.6;        // velocidad en la escalera
 const TRAMP = 10.5;       // fuerza del trampolín (T)
 const T_COOLDOWN = 420;   // cuadros que la T tarda en recargarse (60 = 1 segundo)
 const LADDER_GRACE = 110; // cuadros que la escalera sigue visible al soltar el botón
-const MAX_BARRELS = 5;    // máximo de barriles (O) por lado
+const MAX_BARRELS = 6;    // máximo de barriles (O) por lado
 const BARREL_SPEED = 2.6; // qué tan rápido ruedan los barriles
 const MOSTRAR_TIEMPO = true; // muestra cuánto se demoran en rescatar la N
 const MODO_PRUEBA = false; // true: presiona ESPACIO 10 veces para ganar directo (para probar el final). Ponlo en false para la versión final
@@ -55,6 +55,7 @@ const probe = Bodies.rectangle(0, 0, PW * 0.7, 8, { isSensor: true }); // "pies"
 let engine, floors, floorBodies, girderLetters, ladders, buttons, tramps, barrels, pops, shots, players;
 let state, spawnTimer, finale, cam, started = false, testPresses = 0;
 let startMillis = 0, finalTime = 0; // para el tiempo
+let tips; // pistas que desaparecen cuando cada jugadora aprende algo
 let P = {}; // colores
 
 // ---------- Ayudas ----------
@@ -140,6 +141,7 @@ function build() {
   floors = []; floorBodies = []; girderLetters = []; ladders = []; buttons = []; tramps = []; barrels = []; pops = []; shots = [];
   state = 'play'; finale = null; spawnTimer = { L: 120, R: 150 }; testPresses = 0;
   startMillis = millis();
+  tips = { d: { L: false, R: false }, climb: { L: false, R: false }, t: { L: false, R: false } };
   cam = { L: 0, R: 0 }; // la cámara empieza arriba, mostrando a la N atrapada
 
   // Pisos hechos de E
@@ -235,6 +237,7 @@ function onCollide(e) {
 }
 
 function bounce(p, t) {
+  tips.t[t.side] = true;
   Body.setVelocity(p.body, { x: p.body.velocity.x, y: -TRAMP });
   t.squash = 0.5; p.squash = 1.3; sfx.boing();
   if (t.cool > 0) return;
@@ -309,6 +312,7 @@ function ladderNear(p, up) {
 }
 
 function startClimb(p, lad) {
+  tips.climb[p.side] = true;
   p.climbing = lad;
   p.body.collisionFilter.mask = MASK_CLIMB;
   Body.setPosition(p.body, { x: lad.x, y: p.body.position.y });
@@ -408,6 +412,7 @@ function step() {
       Math.abs(p.body.position.x - btn.x) < 26 &&
       Math.abs(p.body.position.y + PH / 2 - surfaceY(btn.f, btn.x)) < 14);
     if (btn.pressed && !was) sfx.press();
+    if (btn.pressed) tips.d[btn.side] = true;
   }
   for (const lad of ladders) {
     if (lad.button.pressed) lad.timer = LADDER_GRACE;
@@ -657,6 +662,9 @@ function drawWorld() {
   letter('I', MID + 34, CAP_Y, 64, 0, P.world);
   letter('N', MID, CAP_Y + bob, 60, 0, P.ink);
 
+  // Pistas: enseñan qué hace cada cosa y desaparecen cuando se aprende
+  drawTips();
+
   // Jugadoras
   for (const p of players) {
     if (p.invuln > 0 && p.stun === 0 && Math.floor(frameCount / 5) % 2 === 0) continue; // parpadea
@@ -667,6 +675,40 @@ function drawWorld() {
     translate(0, PH / 2); scale(1 / sq, sq);
     fill(sideColor(p.side)); textSize(58); text('N', 0, -PH / 2 + 3);
     pop();
+  }
+}
+
+function tipLabel(str, x, y, c) {
+  const b = Math.sin(frameCount * 0.1) * 4;
+  fill(c); textSize(19); text(str, x, y + b);
+  textSize(14); text('▼', x, y + 22 + b);
+}
+
+function drawTips() {
+  // El objetivo, junto a la N atrapada
+  if (!tips.climb.L && !tips.climb.R) {
+    fill(P.ink); textSize(22); text('¡Rescaten a esta N!', MID, CAP_Y - 62);
+  }
+  for (const side of ['L', 'R']) {
+    const col = sideColor(side), partner = sideColor(other(side));
+    const up = side === 'L' ? 'W' : '↑';
+    // piso donde está la jugadora, para mostrar solo las pistas de ese piso
+    const pl = players.find(p => p.side === side);
+    const k = Math.round((floorShape(0).y - (pl.body.position.y + PH / 2)) / FLOOR_GAP);
+    const btn = buttons.find(b => b.side === side && b.k === k);
+    const lad = ladders.find(l => l.side === side && l.k === 0);
+    // 1) Párate en la D
+    if (btn && !tips.d[side]) tipLabel('párate aquí', btn.x, surfaceY(btn.f, btn.x) - 70, col);
+    // 2) Mientras estás en tu D y tu compañera no ha subido: le abriste el camino
+    else if (btn && btn.pressed && !tips.climb[other(side)]) tipLabel('¡abriste su escalera!', btn.x, surfaceY(btn.f, btn.x) - 70, partner);
+    // 3) Te apareció una escalera: súbela
+    if (lad.active && !tips.climb[side]) tipLabel('¡sube con ' + up + '!', lad.x, surfaceY(lad.lower, lad.x) - 95, partner);
+    // 4) Escalera apagada: alguien más la abre
+    else if (!lad.active && !tips.climb[side] && tips.d[side]) tipLabel('se abre desde el otro lado', lad.x, surfaceY(lad.lower, lad.x) - 95, P.soft);
+    // 5) La T del piso donde está (un poco más arriba para no chocar con la de la D)
+    if (!tips.t[side]) {
+      for (const t of tramps) if (t.side === side && t.k === k && t.cool === 0) tipLabel('salta encima', t.x, surfaceY(t.f, t.x) - 100, col);
+    }
   }
 }
 
