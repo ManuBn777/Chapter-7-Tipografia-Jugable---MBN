@@ -15,7 +15,7 @@ const LADDER_GRACE = 110; // cuadros que la escalera sigue visible al soltar el 
 const MAX_BARRELS = 5;    // máximo de barriles (O) por lado
 const BARREL_SPEED = 2.6; // qué tan rápido ruedan los barriles
 const MOSTRAR_TIEMPO = true; // muestra cuánto se demoran en rescatar la N
-const MODO_PRUEBA = true; // true: presiona ESPACIO 10 veces para ganar directo (para probar el final). Ponlo en false para la versión final
+const MODO_PRUEBA = false; // true: presiona ESPACIO 10 veces para ganar directo (para probar el final). Ponlo en false para la versión final
 
 // ---------- Medidas del mundo ----------
 const W = 1200, H = 700, MID = W / 2;           // lo que se ve en pantalla
